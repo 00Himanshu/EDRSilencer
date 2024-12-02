@@ -41,6 +41,13 @@ BOOL CheckProcessIntegrityLevel() {
         return FALSE;
     }
 
+    if (pTIL->Label.Sid == NULL || *GetSidSubAuthorityCount(pTIL->Label.Sid) < 1) {
+        printf("[-] SID structure is invalid.\n");
+        LocalFree(pTIL);
+        CloseHandle(hToken);
+        return FALSE;
+    }
+	
     dwIntegrityLevel = *GetSidSubAuthority(pTIL->Label.Sid, (DWORD)(UCHAR)(*GetSidSubAuthorityCount(pTIL->Label.Sid) - 1));
 
     if (dwIntegrityLevel >= SECURITY_MANDATORY_HIGH_RID) {
@@ -134,7 +141,7 @@ ErrorCode ConvertToNtPath(PCWSTR filePath, wchar_t* ntPathBuffer, size_t bufferS
         return CUSTOM_FAILED_TO_GET_DOS_DEVICE_NAME;
     }
 
-    swprintf(ntPathBuffer, bufferSize, L"%S%S", ntDrivePath, filePath + wcslen(driveName));
+    swprintf(ntPathBuffer, bufferSize, L"%ls%ls", ntDrivePath, filePath + wcslen(driveName));
     
     for (size_t i = 0; ntPathBuffer[i] != L'\0'; ++i) {
         ntPathBuffer[i] = towlower(ntPathBuffer[i]);
@@ -218,11 +225,13 @@ BOOL GetProviderGUIDByDescription(PCWSTR providerDescription, GUID* outProviderG
         return FALSE;
     }
 
+    BOOL found = FALSE;
     for (UINT32 i = 0; i < numProviders; i++) {
         if (providers[i]->displayData.description != NULL) {
             if (wcscmp(providers[i]->displayData.description, providerDescription) == 0) {
                 *outProviderGUID = providers[i]->providerKey;
-                return TRUE;
+                found = TRUE;
+                break;
             }
         }   
     }
@@ -233,5 +242,5 @@ BOOL GetProviderGUIDByDescription(PCWSTR providerDescription, GUID* outProviderG
 
     FwpmProviderDestroyEnumHandle0(hEngine, enumHandle);
     FwpmEngineClose0(hEngine);
-    return FALSE;
+    return found;
 }
